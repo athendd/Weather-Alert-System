@@ -1,84 +1,189 @@
-import schedule 
-import smtplib 
 import requests 
-from bs4 import BeautifulSoup 
-import os
+import datetime
 from datetime import date
+from alerts import check_alerts
+from clothing_recommender import clothing_recommendations
 
+emojis = {
+    "Thunderstorm": "⛈️",
+    "Drizzle": "<0xF0><0x9F><0xAB><0x8E>", 
+    "Rain": "🌧️",
+    "Snow": "❄️",
+    "Clear": "☀️",
+    "Clouds": "☁️",
+    "Mist": "🌫️",
+    "Smoke": "💨",
+    "Haze": "🌫️",
+    "Dust": "💨",
+    "Fog": "🌫️",
+    "Sand": "",
+    "Ash": "",
+    "Tornado": "🌪️",
+    "Temperature": "🌡️",
+    "Feels Cold": "🥶",
+    "Feels Hot": "🥵",
+    "Humidity": "💧",
+    "Visibility": "👁️",
+    "Precipitation": "<0xF0><0x9F><0x8C><0x9E>", 
+    "Sunrise": "🌅",
+    "Sunset": "🌇",
+    "Moon": {
+        "New Moon": "🌑",
+        "Waxing Crescent": "🌒",
+        "First Quarter": "🌓",
+        "Waxing Gibbous": "🌔",
+        "Full Moon": "🌕",
+        "Waning Gibbous": "🌖",
+        "Third Quarter": "🌗",
+        "Waning Crescent": "🌘"
+    },
+    "Warning": "⚠️",
+}
 
-def weather_reminder(api_key): 
+def weather_reminder(api_key):     
+    lat = 42.36
+    lon = -71.05
+    units = "imperial"
     
-    city = "Boston"
+    openweathermap_url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={api_key}&units={units}"
     
-    openweathermap_url = f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}'
-
     response = requests.get(openweathermap_url)
-    
-    username = "Andrew Thynne"
-    
+            
     # Add code to deal with different response statuses
     if response.status_code == 200:
-        data = response.json()
-        curr_temp = kelvin_to_fahrenheit(data["main"]["temp"])
-        perceived_temp = kelvin_to_fahrenheit(data["main"]["feels_like"])
-        max_temp = kelvin_to_fahrenheit(data["main"]["temp_max"])
-        min_temp = kelvin_to_fahrenheit(data["main"]["temp_min"])
-        weather = data["weather"][0]["main"]
-        weather_desc = data["weather"][0]["description"]    
-        humidity = data["main"]["humidity"]
-        wind_speed = data["wind"]["speed"]
-        # Measured in hpa
-        pressure = data["main"]["pressure"]
-        visibility = data["visibility"]
+        
+        data = response.json()    
+        
+        current = data["current"]
+        
+        daily = data["daily"][0]
+        
+        hourly = data['hourly'][0:12]
         
         curr_date = date.today()
-        
-        weather_output = main_weather(weather, weather_desc)
-        
-        humidity_output = humidity_response(humidity)
-        
-        wind_speed_output = wind_speed_response(wind_speed)
-        
-        visibility_output = visibility_response(visibility)
-        
-        # switch curr_temp with mean temp
-        clothing = clothing_recommendation(weather, curr_temp)
-        
         formatted_date = curr_date.strftime("%Y-%m-%d")
         
-        subject = f"Weather Reminder for {formatted_date}"
+        time_offset = data["timezone_offset"]
         
-        body = f"""
-        Dear {username},
+        num_messages = 4
         
-        {weather_output}
+        alerts = data.get("alerts", [])
         
-        Current Temperature: {curr_temp}
-        Feels Like: {perceived_temp}
-        High: {max_temp}
-        Low: {min_temp}
+        alert_responses = None
         
-        Clothing Recommendation: {clothing}
+        if alerts:
+            alert_responses = check_alerts(alerts)
+            num_messages += len(alerts)
+            
+        subjects = [0] * num_messages
+        bodies = [0] * num_messages
         
-        Humidity: {humidity_output}
+        clothing = clothing_recommendations(daily["weather"][0]["main"], daily["temp"]["day"])
         
-        Wind Speed: {wind_speed_output}
+        subjects[0], bodies[0] = create_report(current, formatted_date)
+        subjects[1], bodies[1] = create_daily_report(daily, formatted_date)
+        subjects[2], bodies[2] = create_hourly_report(hourly, formatted_date, time_offset)
+        subjects[3], bodies[3] = "Clothing Recommendations", clothing
         
-        Visibility: {visibility_output}
-        """
-                
-        return subject, body
+        if alert_responses != None:
+            curr_index = 4
+            for key in alert_responses:
+                subjects[curr_index] = key
+                bodies[curr_index] = alert_responses[key]
+                curr_index += 1
+                        
+        return subjects, bodies
     else:
-        return "nothing"
-  
-def get_requests(city):
-    # creating url and requests instance 
-	url = "https://www.google.com/search?q=" + "weather" + city 
-	html = requests.get(url).content
- 
-def kelvin_to_fahrenheit(temp):
-    fahrenheit = (temp - 273.15) * 1.8 + 32
-    return round(fahrenheit, 2)
+        return "nothing"  
+    
+def create_report(data, date):
+    
+    outputs = calculate_outputs(data, True)
+    
+    subject = f"Current Weather Forecast for {date}"
+        
+    body = f"""        
+    Current Weather Report: {outputs["weather"]}
+    {emojis["Temperature"]} Temperature: {data["temp"]}°F (Feels Like: {data["feels_like"]}°F)    
+    {emojis["Humidity"]} Humidity: {outputs["humidity"]}
+    {emojis["Dust"]} Wind Speed: {outputs["wind_speed"]}
+    {emojis["Clouds"]} Cloudiness: {outputs["clouds"]}
+    {emojis["Visibility"]} Visibility: {outputs["visibility"]} 
+    UVI Index: {outputs["uvi"]}
+    """
+    
+    return subject, body
+
+def create_daily_report(daily_data, date):
+    daily_outputs = calculate_outputs(daily_data, False)
+    
+    daily_subject = f"Daily Weather Forecast for {date}"
+    
+    moonphase_emoji = calculate_moonphase_emoji(daily_data["moon_phase"])
+
+    daily_body = f"""
+    Summary: {daily_data["summary"]}
+    {emojis["Temperature"]} Temperature: {daily_data["temp"]["day"]}°F (Feels Like: {daily_data["feels_like"]["day"]}°F), High: {daily_data["temp"]["max"]}°F, Low:  {daily_data["temp"]["min"]}°F
+    {emojis["Humidity"]} Humidity: {daily_outputs["humidity"]}
+    Wind Chill: {calculate_wind_chill(daily_data["temp"]["day"], daily_data["wind_speed"])}
+    {emojis["Dust"]} Wind Speed: {daily_outputs["wind_speed"]}
+    {emojis["Clouds"]} Cloudiness: {daily_outputs["clouds"]}
+    UV Radiation: {daily_outputs["uvi"]}
+    {emojis["Sunrise"]} Sunrise: {daily_data["sunrise"]}
+    {emojis["Sunset"]} Sunset: {daily_data["sunset"]}
+    {emojis["Moon"][moonphase_emoji]} {moonphase_emoji}
+    """
+    
+    return daily_subject, daily_body
+
+def create_hourly_report(hourly_data, date, time_offset):
+    hourly_outputs = calculate_hourly_outputs(hourly_data, time_offset)
+    
+    hourly_subject = f"Hourly Weather Forecast for {date}"
+    
+    hourly_body = ""
+        
+    for key in hourly_outputs:
+        hourly_body += f"\n{hourly_outputs[key][0]}°F (Feels Like: {hourly_outputs[key][1]}°F), {hourly_outputs[key][2]}"
+        
+    return hourly_subject, hourly_body
+    
+def calculate_hourly_outputs(data_dic, time_offset):
+    output_dic = {}
+    
+    for data in data_dic:
+        time = get_time(data["dt"], time_offset)
+        output_dic[time] = []
+        output_dic[time].append(data["temp"])
+        output_dic[time].append(data["feels_like"])
+        precipitation_probability = calculate_precipitation(data)
+        output_dic[time].append(precipitation_probability)
+        
+    return output_dic
+    
+def calculate_outputs(data_dic, is_current):
+    output_dic = {}
+    output_dic["humidity"] = humidity_response(data_dic["humidity"])
+    output_dic["wind_speed"] = wind_speed_response(data_dic["wind_speed"])
+    output_dic["uvi"] = uvi_response(data_dic["uvi"])
+    output_dic["clouds"] = cloudiness_response(data_dic["clouds"])
+    if is_current:
+        output_dic["visibility"] = visibility_response(data_dic["visibility"])
+        output_dic["weather"], output_dic["weather_emoji"] = main_weather(data_dic["weather"][0]["main"], data_dic["weather"][0]["description"])
+    else:
+        output_dic["precipitation"] = calculate_precipitation(data_dic)
+    return output_dic
+
+def calculate_precipitation(data_dic):
+    if "rain" in data_dic.values():
+        return f"Chance of Rain: {data_dic["pop"]} (Depth: {data_dic["rain"]} mm)"
+    
+    elif "snow" in data_dic.values():
+        return f"Chance of Snow: {data_dic["pop"]} (Depth: {data_dic["snow"]} mm)"
+    
+    else:
+        return f"Chance of Precipitation: {data_dic["pop"]}"
+    
 
 def humidity_response(humidity):
     if humidity >= 60 and humidity < 80:
@@ -113,6 +218,7 @@ def wind_speed_response(wind_speed):
     
     else:
         return "Not Windy"
+        
 
 def visibility_response(visibility):
     if visibility < 1001:
@@ -125,6 +231,32 @@ def visibility_response(visibility):
         return "Good"
     else:
         return "Very Good"
+    
+def uvi_response(uvi):
+    if uvi >= 11:
+        return "Extremely High"
+    elif uvi >= 8 and uvi < 11:
+        return "Very High"
+    elif uvi >= 6 and uvi < 8:
+        return "High"
+    elif uvi >= 3 and uvi < 6:
+        return "Normal"
+    else:
+        return "Low"
+    
+def cloudiness_response(cloudiness):
+    if cloudiness >= 90:
+        return "Extremely Cloudy"
+    elif cloudiness < 90 and cloudiness >= 75:
+        return "Very Cloudy"
+    elif cloudiness < 75 and cloudiness >= 50:
+        return "Cloudy"
+    elif cloudiness < 50 and cloudiness >= 25:
+        return "Slightly Cloudy"
+    elif cloudiness < 25 and cloudiness >= 5:
+        return "Not Cloudy"
+    else:
+        return "No Clouds"
 
 def desc_weather_thunderstorm(desc):
     thunderstorm_dic = {
@@ -203,88 +335,115 @@ def desc_weather_snow(desc):
 def main_weather(weather, weather_desc):
     if weather == "Thunderstorm":
         
-        return desc_weather_thunderstorm(weather_desc)
+        return desc_weather_thunderstorm(weather_desc), emojis["Thunderstorm"]
         
     elif weather == "Drizzle":
         
-        return desc_weather_drizzle(weather_desc)
+        return desc_weather_drizzle(weather_desc), emojis["Drizzle"]
         
     elif weather == "Rain":
         
-        return desc_weather_rain(weather_desc)
+        return desc_weather_rain(weather_desc), emojis["Rain"]
     
     elif weather == "Snow":
         
-        return desc_weather_snow(weather_desc)
+        return desc_weather_snow(weather_desc), emojis["Snow"]
         
     elif weather == "Clear":
         
-        return "Clear skies, enjoy the view."
+        return "Clear skies, enjoy the view.", emojis["Clear"]
     
     elif weather == "Clouds":
         
-        return desc_weather_clouds(weather_desc)
+        return desc_weather_clouds(weather_desc), emojis["Clouds"]
         
     else:
         
         if weather == "Mist":
             
-            return "Misty outside. Be careful when driving."
+            return "Misty outside. Be careful when driving.", emojis["Mist"]
             
         elif weather == "Smoke":
             
-            return "Low visibility outside due to smoke. Try to stay inside."
+            return "Low visibility outside due to smoke. Try to stay inside.", emojis["Smoke"]
             
         elif weather == "Haze":
             
-            return "Haze outside. Be careful when driving."
+            return "Haze outside. Be careful when driving.", emojis["Haze"]
             
         elif weather == "Dust":
             
             if weather_desc == "sand/dust whirls":
                 
-                return "Dusty outside. Wear eye protection and keep your mouth covered"
+                return "Dusty outside. Wear eye protection and keep your mouth covered", emojis["Dust"]
             
             else:
                 
-                return "Somewhat dusty outside."
+                return "Somewhat dusty outside.", emojis["Dust"]
                 
         elif weather == "Fog":
             
-            return "Foggy outside. Be careful when driving."
+            return "Foggy outside. Be careful when driving.", emojis["Fog"]
             
         elif weather == "Sand":
             
-            return "Sandy outside. Make sure to cover your mouth and wear eye protection."
+            return "Sandy outside. Make sure to cover your mouth and wear eye protection.", emojis["Sand"]
             
         elif weather == "Ash":
             
-            return "WARNING: Ash outside. Stay indoors and close all doors and windows."
+            return "WARNING: Ash outside. Stay indoors and close all doors and windows.", emojis["Ash"]
             
         elif weather == "Squall":
             
-            return "WARNING: Potential storm that will last for a couple of minutes. Don't do anything outdoors for too long."
+            return "WARNING: Potential storm that will last for a couple of minutes. Don't do anything outdoors for too long.", emojis["Clouds"]
         
         else:
-            return "WARNING: Tornado. Stay inside a sturdy shelter and go to its lowest level."
-    
-def clothing_recommendation(weather, temp):
-    if weather == "Rain" or weather == "Drizzle" or weather == "Thundestorm":
-        return "Raincoat or waterproof clothing"
-    elif weather == "Snow":
-        return "Heavy insulated jacket and pants"
+            return "WARNING: Tornado. Stay inside a sturdy shelter and go to its lowest level.", emojis["Tornado"]
+        
+def calculate_wind_chill(temp, wind_speed):
+    if (temp <= 50 and wind_speed > 3):
+        wind_chill = 35.74 + (0.6215 * temp) - (35.75 * (wind_speed ** 0.16)) + (0.4275 * temp * (wind_speed ** 0.16))
+        return round(wind_chill, 2)
     else:
-        if temp < 20:
-            return "Heavy insulated jacket and multiple layers underneath"
-        elif temp <= 20 and temp < 40:
-            return "Heavy jacket and pants"
-        elif temp <= 40 and temp < 60:
-            return "Jacket and pants"
-        elif temp <= 60 and temp < 75:
-            return "Light jacket or long sleeve shirt and shorts"
-        else:
-            return "Short sleeve shirt and shorts"
-        
+        return "No wind chill"
     
+def get_time(dt, offset):
+    time = str(datetime.datetime.fromtimestamp(dt - offset)).split(" ")
+    time = convert_military_to_regular(time)
+    return time
+        
+def convert_military_to_regular(military_time):
+    hours = int(military_time[1][:2])
 
+    if hours == 0:
+        regular_hours = 12
+        period = "AM"
+    elif hours < 12:
+        regular_hours = hours
+        period = "AM"
+    elif hours == 12:
+        regular_hours = 12
+        period = "PM"
+    else:
+        regular_hours = hours - 12
+        period = "PM"
 
+    return f"{regular_hours} {period}"
+
+def calculate_moonphase_emoji(phase_num):
+    if phase_num == 0 or phase_num == 1:
+        return "New Moon"
+    elif phase_num > 0 and phase_num < 0.25:
+        return "Waxing Crescent"
+    elif phase_num == 0.25:
+        return "First Quarter"
+    elif phase_num > 0.25 and phase_num < 0.5:
+        return "Waxing Gibbous"
+    elif phase_num == 0.5:
+        return "Full Moon"
+    elif phase_num > 0.5 and phase_num < 0.75:
+        return "Waning Gibbous"
+    elif phase_num == 0.75:
+        return "Third Quarter"
+    else:
+        return "Waning Crescent"
