@@ -14,15 +14,16 @@ def send_message():
     
     pushover_api_token, pushover_api_key, openweathermap_api_key = get_personal_info("./Key Information.txt")
 
-    subject, body = weather_reminder(openweathermap_api_key)
-    data = {
-        "token": pushover_api_token,
-        "user": pushover_api_key,
-        "message": body,
-        "title": subject
-    }
-
-    response = requests.post(pushover_url, data=data)
+    subjects, bodies = weather_reminder(openweathermap_api_key)
+    
+    for subject, body in zip(subjects, bodies):
+        data = {
+            "token": pushover_api_token,
+            "user": pushover_api_key,
+            "message": body,
+            "title": subject
+        }
+        response = requests.post(pushover_url, data=data)
     
 """
 # Every day at 06:00AM time umbrellaReminder() is called. 
