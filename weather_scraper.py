@@ -49,7 +49,6 @@ def weather_reminder(api_key):
     
     response = requests.get(openweathermap_url)
             
-    # Add code to deal with different response statuses
     if response.status_code == 200:
         
         data = response.json()    
@@ -94,22 +93,25 @@ def weather_reminder(api_key):
                         
         return subjects, bodies
     else:
-        return "nothing"  
+        return None, None
     
 def create_report(data, date):
     
     outputs = calculate_outputs(data, True)
     
     subject = f"Current Weather Forecast for {date}"
+    
+    current_main_weather = data["weather"][0]["main"]
         
     body = f"""        
     Current Weather Report: {outputs["weather"]}
+    {emojis[current_main_weather]} Current Weather Type: {current_main_weather}
     {emojis["Temperature"]} Temperature: {data["temp"]}°F (Feels Like: {data["feels_like"]}°F)    
     {emojis["Humidity"]} Humidity: {outputs["humidity"]}
     {emojis["Dust"]} Wind Speed: {outputs["wind_speed"]}
     {emojis["Clouds"]} Cloudiness: {outputs["clouds"]}
     {emojis["Visibility"]} Visibility: {outputs["visibility"]} 
-    UVI Index: {outputs["uvi"]}
+    {emojis["Clear"]} UV Radation: {outputs["uvi"]}
     """
     
     return subject, body
@@ -125,10 +127,10 @@ def create_daily_report(daily_data, date):
     Summary: {daily_data["summary"]}
     {emojis["Temperature"]} Temperature: {daily_data["temp"]["day"]}°F (Feels Like: {daily_data["feels_like"]["day"]}°F), High: {daily_data["temp"]["max"]}°F, Low:  {daily_data["temp"]["min"]}°F
     {emojis["Humidity"]} Humidity: {daily_outputs["humidity"]}
-    Wind Chill: {calculate_wind_chill(daily_data["temp"]["day"], daily_data["wind_speed"])}
+    {emojis["Dust"]} Wind Chill: {calculate_wind_chill(daily_data["temp"]["day"], daily_data["wind_speed"])}
     {emojis["Dust"]} Wind Speed: {daily_outputs["wind_speed"]}
     {emojis["Clouds"]} Cloudiness: {daily_outputs["clouds"]}
-    UV Radiation: {daily_outputs["uvi"]}
+    {emojis["Clear"]} UV Radiation: {daily_outputs["uvi"]}
     {emojis["Sunrise"]} Sunrise: {daily_data["sunrise"]}
     {emojis["Sunset"]} Sunset: {daily_data["sunset"]}
     {emojis["Moon"][moonphase_emoji]} {moonphase_emoji}
@@ -169,7 +171,7 @@ def calculate_outputs(data_dic, is_current):
     output_dic["clouds"] = cloudiness_response(data_dic["clouds"])
     if is_current:
         output_dic["visibility"] = visibility_response(data_dic["visibility"])
-        output_dic["weather"], output_dic["weather_emoji"] = main_weather(data_dic["weather"][0]["main"], data_dic["weather"][0]["description"])
+        output_dic["weather"] = main_weather(data_dic["weather"][0]["main"], data_dic["weather"][0]["description"])
     else:
         output_dic["precipitation"] = calculate_precipitation(data_dic)
     return output_dic
@@ -335,70 +337,70 @@ def desc_weather_snow(desc):
 def main_weather(weather, weather_desc):
     if weather == "Thunderstorm":
         
-        return desc_weather_thunderstorm(weather_desc), emojis["Thunderstorm"]
+        return desc_weather_thunderstorm(weather_desc)
         
     elif weather == "Drizzle":
         
-        return desc_weather_drizzle(weather_desc), emojis["Drizzle"]
+        return desc_weather_drizzle(weather_desc)
         
     elif weather == "Rain":
         
-        return desc_weather_rain(weather_desc), emojis["Rain"]
+        return desc_weather_rain(weather_desc)
     
     elif weather == "Snow":
         
-        return desc_weather_snow(weather_desc), emojis["Snow"]
+        return desc_weather_snow(weather_desc)
         
     elif weather == "Clear":
         
-        return "Clear skies, enjoy the view.", emojis["Clear"]
+        return "Clear skies, enjoy the view."
     
     elif weather == "Clouds":
         
-        return desc_weather_clouds(weather_desc), emojis["Clouds"]
+        return desc_weather_clouds(weather_desc)
         
     else:
         
         if weather == "Mist":
             
-            return "Misty outside. Be careful when driving.", emojis["Mist"]
+            return "Misty outside. Be careful when driving."
             
         elif weather == "Smoke":
             
-            return "Low visibility outside due to smoke. Try to stay inside.", emojis["Smoke"]
+            return "Low visibility outside due to smoke. Try to stay inside."
             
         elif weather == "Haze":
             
-            return "Haze outside. Be careful when driving.", emojis["Haze"]
+            return "Haze outside. Be careful when driving."
             
         elif weather == "Dust":
             
             if weather_desc == "sand/dust whirls":
                 
-                return "Dusty outside. Wear eye protection and keep your mouth covered", emojis["Dust"]
+                return "Dusty outside. Wear eye protection and keep your mouth covered"
             
             else:
                 
-                return "Somewhat dusty outside.", emojis["Dust"]
+                return "Somewhat dusty outside."
                 
         elif weather == "Fog":
             
-            return "Foggy outside. Be careful when driving.", emojis["Fog"]
+            return "Foggy outside. Be careful when driving."
             
         elif weather == "Sand":
             
-            return "Sandy outside. Make sure to cover your mouth and wear eye protection.", emojis["Sand"]
+            return "Sandy outside. Make sure to cover your mouth and wear eye protection."
             
         elif weather == "Ash":
             
-            return "WARNING: Ash outside. Stay indoors and close all doors and windows.", emojis["Ash"]
+            return "WARNING: Ash outside. Stay indoors and close all doors and windows."
             
         elif weather == "Squall":
             
-            return "WARNING: Potential storm that will last for a couple of minutes. Don't do anything outdoors for too long.", emojis["Clouds"]
+            return "WARNING: Potential storm that will last for a couple of minutes. Don't do anything outdoors for too long."
         
         else:
-            return "WARNING: Tornado. Stay inside a sturdy shelter and go to its lowest level.", emojis["Tornado"]
+            return "WARNING: Tornado. Stay inside a sturdy shelter and go to its lowest level."
         
 def calculate_wind_chill(temp, wind_speed):
     if (temp <= 50 and wind_speed > 3):
