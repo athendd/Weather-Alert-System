@@ -1,0 +1,3 @@
+Put Pushover API Token here
+Put Pushover API Key here
+Put OpenWeatherMap API 3.0 Key here
