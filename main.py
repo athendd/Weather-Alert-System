@@ -16,22 +16,15 @@ def send_message():
 
     subjects, bodies = weather_reminder(openweathermap_api_key)
     
-    for subject, body in zip(subjects, bodies):
-        data = {
-            "token": pushover_api_token,
-            "user": pushover_api_key,
-            "message": body,
-            "title": subject
-        }
-        response = requests.post(pushover_url, data=data)
-    
-"""
-# Every day at 06:00AM time umbrellaReminder() is called. 
-schedule.every().day.at("06:00").do(umbrellaReminder) 
+    if subjects != None and bodies != None:
 
-while True: 
-	schedule.run_pending() 
-"""
-
+        for subject, body in zip(subjects, bodies):
+            data = {
+                "token": pushover_api_token,
+                "user": pushover_api_key,
+                "message": body,
+                "title": subject
+            }
+            response = requests.post(pushover_url, data=data)
 
 send_message()
