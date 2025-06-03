@@ -2,7 +2,8 @@ import requests
 import datetime
 from datetime import date
 from alerts import check_alerts
-from clothing_recommender import clothing_recommendations
+from clothing_recommender import main_recommendation
+import pytz
 
 emojis = {
     "Thunderstorm": "⛈️",
@@ -61,9 +62,7 @@ def weather_reminder(api_key):
         
         curr_date = date.today()
         formatted_date = curr_date.strftime("%Y-%m-%d")
-        
-        time_offset = data["timezone_offset"]
-        
+                
         num_messages = 4
         
         alerts = data.get("alerts", [])
@@ -77,11 +76,11 @@ def weather_reminder(api_key):
         subjects = [0] * num_messages
         bodies = [0] * num_messages
         
-        clothing = clothing_recommendations(daily["weather"][0]["main"], daily["temp"]["day"])
+        clothing = main_recommendation(daily["weather"][0]["main"], daily["temp"]["day"])
         
         subjects[0], bodies[0] = create_report(current, formatted_date)
         subjects[1], bodies[1] = create_daily_report(daily, formatted_date)
-        subjects[2], bodies[2] = create_hourly_report(hourly, formatted_date, time_offset)
+        subjects[2], bodies[2] = create_hourly_report(hourly, formatted_date)
         subjects[3], bodies[3] = "Clothing Recommendations", clothing
         
         if alert_responses != None:
@@ -125,7 +124,10 @@ def create_daily_report(daily_data, date):
 
     daily_body = f"""
     Summary: {daily_data["summary"]}
-    {emojis["Temperature"]} Temperature: {daily_data["temp"]["day"]}°F (Feels Like: {daily_data["feels_like"]["day"]}°F), High: {daily_data["temp"]["max"]}°F, Low:  {daily_data["temp"]["min"]}°F
+    {emojis["Temperature"]} Temperature: {daily_data["temp"]["day"]}°F 
+    Feels Like: {daily_data["feels_like"]["day"]}°F
+    High: {daily_data["temp"]["max"]}°F
+    Low:  {daily_data["temp"]["min"]}°F
     {emojis["Humidity"]} Humidity: {daily_outputs["humidity"]}
     {emojis["Dust"]} Wind Chill: {calculate_wind_chill(daily_data["temp"]["day"], daily_data["wind_speed"])}
     {emojis["Dust"]} Wind Speed: {daily_outputs["wind_speed"]}
@@ -138,23 +140,24 @@ def create_daily_report(daily_data, date):
     
     return daily_subject, daily_body
 
-def create_hourly_report(hourly_data, date, time_offset):
-    hourly_outputs = calculate_hourly_outputs(hourly_data, time_offset)
+def create_hourly_report(hourly_data, date):
+    hourly_outputs = calculate_hourly_outputs(hourly_data)
     
     hourly_subject = f"Hourly Weather Forecast for {date}"
     
     hourly_body = ""
         
     for key in hourly_outputs:
-        hourly_body += f"\n{hourly_outputs[key][0]}°F (Feels Like: {hourly_outputs[key][1]}°F), {hourly_outputs[key][2]}"
+        hourly_body += f"{hourly_outputs[key][0]}°F (Feels Like: {hourly_outputs[key][1]}°F)"
+        hourly_body += f"\n{hourly_outputs[key][2]}\n"
         
     return hourly_subject, hourly_body
     
-def calculate_hourly_outputs(data_dic, time_offset):
+def calculate_hourly_outputs(data_dic):
     output_dic = {}
     
     for data in data_dic:
-        time = get_time(data["dt"], time_offset)
+        time = get_time(data["dt"])
         output_dic[time] = []
         output_dic[time].append(data["temp"])
         output_dic[time].append(data["feels_like"])
@@ -184,7 +187,7 @@ def calculate_precipitation(data_dic):
         return f"Chance of Snow: {data_dic["pop"]} (Depth: {data_dic["snow"]} mm)"
     
     else:
-        return f"Chance of Precipitation: {data_dic["pop"]}"
+        return f"Chance of Precipitation: {data_dic["pop"] * 10}%"
     
 
 def humidity_response(humidity):
@@ -409,28 +412,13 @@ def calculate_wind_chill(temp, wind_speed):
     else:
         return "No wind chill"
     
-def get_time(dt, offset):
-    time = str(datetime.datetime.fromtimestamp(dt - offset)).split(" ")
-    time = convert_military_to_regular(time)
+def get_time(dt):
+    est_timezone = pytz.timezone('US/Eastern')
+    utc_datetime_object = datetime.datetime.fromtimestamp(dt, tz=pytz.utc)
+    est_datetime_object = utc_datetime_object.astimezone(est_timezone)
+    time = est_datetime_object.strftime("%H:%M:%S")
+    
     return time
-        
-def convert_military_to_regular(military_time):
-    hours = int(military_time[1][:2])
-
-    if hours == 0:
-        regular_hours = 12
-        period = "AM"
-    elif hours < 12:
-        regular_hours = hours
-        period = "AM"
-    elif hours == 12:
-        regular_hours = 12
-        period = "PM"
-    else:
-        regular_hours = hours - 12
-        period = "PM"
-
-    return f"{regular_hours} {period}"
 
 def calculate_moonphase_emoji(phase_num):
     if phase_num == 0 or phase_num == 1:
