@@ -3,30 +3,45 @@ import random
 class Wardrobe:
     def __init__(self):
         self.wardrobe = {
-            'base_layers': ['t-shirt', 'tank top', 'thermal shirt'],
-            'mid_layers': ['hoodie', 'sweater', 'flannel shirt'],
-            'outerwear': {
-                'cold': ['winter coat', 'parka'],
-                'rain': ['raincoat', 'poncho'],
-                'wind': ['windbreaker'],
-                'mild': ['denim jacket', 'light jacket']
-            },
-            'bottoms': {
-                'cold': ['thermal pants', 'jeans'],
-                'mild': ['chinos', 'trousers'],
-                'hot': ['shorts', 'linen pants']
-            },
-            'footwear': {
-                'rain': ['rain boots'],
-                'snow': ['insulated boots'],
-                'hot': ['sandals', 'sneakers'],
-                'mild': ['casual shoes', 'sneakers']
-            },
-            'accessories': {
-                'cold': ['beanie', 'gloves', 'scarf'],
-                'sunny': ['sunglasses', 'cap'],
-                'rain': ['umbrella']
-            }
+            'tops': [
+                {'item': 'rugby green t-shirt', 'occasions': ['casual'], 'season': ['spring', 'summer'], 'style': 'casual'},
+                {'item': 'red t-shirt', 'occasions': ['casual'], 'season': ['spring', 'summer'], 'style': 'casual'},
+                {'item': 'navy blue t-shirt', 'occasions': ['casual'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'casual'},
+                {'item': 'light blue t-shirt', 'occasions': ['casual'], 'season': ['spring', 'summer'], 'style': 'casual'},
+                {'item': 'navy blue rugby t-shirt', 'occasions': ['casual', 'sport'], 'season': ['spring', 'fall'], 'style': 'casual'},
+                {'item': 'white sweater', 'occasions': ['casual', 'work'], 'season': ['fall', 'winter'], 'style': 'smart'},
+                {'item': 'navy blue button up', 'occasions': ['formal', 'work'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'smart'},
+                {'item': 'white button up', 'occasions': ['formal', 'work'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'smart'}
+            ],
+            'bottoms': [
+                {'item': 'black striped shorts', 'occasions': ['casual'], 'season': ['summer'], 'style': 'casual'},
+                {'item': 'grey shorts', 'occasions': ['casual'], 'season': ['summer'], 'style': 'casual'},
+                {'item': 'maroon red shorts', 'occasions': ['casual'], 'season': ['summer'], 'style': 'casual'},
+                {'item': 'green pants', 'occasions': ['work', 'casual'], 'season': ['fall', 'spring'], 'style': 'smart'},
+                {'item': 'black pants', 'occasions': ['formal', 'work'], 'season': ['fall', 'winter'], 'style': 'smart'},
+                {'item': 'light brown pants', 'occasions': ['casual'], 'season': ['fall', 'spring'], 'style': 'casual'},
+                {'item': 'blue jeans', 'occasions': ['casual'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'casual'}
+            ],
+            'outerwear': [
+                {'item': 'windbreaker jacket', 'weather': ['wind', 'mild'], 'occasions': ['casual', 'outdoor'], 'season': ['spring', 'fall'], 'style': 'casual'},
+                {'item': 'raincoat', 'weather': ['rain'], 'occasions': ['outdoor'], 'season': ['spring', 'fall'], 'style': 'casual'},
+                {'item': 'black winter coat', 'weather': ['cold'], 'occasions': ['formal', 'casual'], 'season': ['winter'], 'style': 'smart'},
+                {'item': 'navy blue jacket', 'weather': ['mild'], 'occasions': ['casual'], 'season': ['fall', 'spring'], 'style': 'casual'},
+                {'item': 'black blazer', 'weather': ['mild'], 'occasions': ['formal'], 'season': ['spring', 'fall'], 'style': 'smart'}
+            ],
+            'footwear': [
+                {'item': 'flat footed shoes', 'occasions': ['casual', 'work'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'smart'},
+                {'item': 'white sneakers', 'occasions': ['casual'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'casual'},
+                {'item': 'brown boots', 'occasions': ['cold', 'casual'], 'season': ['fall', 'winter'], 'style': 'casual'},
+                {'item': 'flip flops', 'occasions': ['casual'], 'season': ['summer'], 'style': 'casual'}
+            ],
+            'accessories': [
+                {'item': 'black umbrella', 'weather': ['rain'], 'season': ['summer', 'spring', 'winter', 'fall'], 'style': 'any'},
+                {'item': 'scarf', 'weather': ['cold'], 'season': ['fall', 'winter'], 'style': 'smart'},
+                {'item': 'gloves', 'weather': ['cold'], 'season': ['winter'], 'style': 'any'},
+                {'item': 'sunglasses', 'weather': ['sunny'], 'season': ['spring', 'summer'], 'style': 'casual'},
+                {'item': 'baseball cap', 'weather': ['sunny'], 'season': ['summer'], 'style': 'casual'}
+            ]
         }
 
 class Recommender:
@@ -35,7 +50,9 @@ class Recommender:
         self.preferences = preferences if preferences else {
             "style_preferences": [],
             "avoid_items": [],
-            "must_have": []
+            "must_have": [],
+            "occasion": "casual",
+            "season": "summer"
         }
 
     def categorize_temperature(self, temp_fahrenheit):
@@ -50,100 +67,75 @@ class Recommender:
         else:
             return 'hot'
 
-    def _filter_items(self, items):
-        return [item for item in items if item not in self.preferences['avoid_items']]
+    def _filter_items(self, items, weather=None):
+        return [
+            item for item in items
+            if item['item'] not in self.preferences['avoid_items']
+            and self.preferences['occasion'] in item.get('occasions', [])
+            and self.preferences['season'] in item.get('season', ['all'])
+            and (not weather or weather in item.get('weather', []) or 'all' in item.get('weather', []))
+        ]
 
-    def _pick_item(self, items, fallback=None):
+    def _pick_item(self, items, category_name):
         filtered = self._filter_items(items)
-        if not filtered:
-            return fallback
-        # Prefer must-have if available
-        for item in self.preferences['must_have']:
-            if item in filtered:
-                return item
-        return random.choice(filtered)
+        must_haves = [item for item in filtered if item['item'] in self.preferences['must_have']]
+        if must_haves:
+            return must_haves[0]['item']
+        elif filtered:
+            return random.choice(filtered)['item']
+        else:
+            fallback = next((item['item'] for item in items if item['item'] in self.preferences['must_have']), None)
+            return f"(No seasonal match for must-have '{fallback}')" if fallback else f"(No suitable {category_name})"
+
+    def match_styles(self, outfit):
+        styles = [piece.get('style', 'casual') for piece in outfit if isinstance(piece, dict)]
+        if 'smart' in styles and 'casual' in styles:
+            return "⚠️ Style clash: Mixing casual and smart items."
+        return ""
 
     def recommend(self, weather: str, temperature_f: float):
         weather = weather.lower()
         temp_category = self.categorize_temperature(temperature_f)
-        outfit_parts = []
+        outfit = []
 
-        # Base layer
-        base = self._pick_item(self.wardrobe['base_layers'])
-        if base:
-            outfit_parts.append(f"Base layer: {base}")
+        top = self._pick_item(self.wardrobe['tops'], "top")
+        bottom = self._pick_item(self.wardrobe['bottoms'], "bottom")
+        outer = self._pick_item(self._filter_items(self.wardrobe['outerwear'], weather), "outerwear")
+        shoes = self._pick_item(self.wardrobe['footwear'], "footwear")
 
-        # Mid-layer for cool/cold/freezing
-        if temp_category in ['cool', 'cold', 'freezing']:
-            mid = self._pick_item(self.wardrobe['mid_layers'])
-            if mid:
-                outfit_parts.append(f"Mid layer: {mid}")
+        accessories = [
+            acc['item'] for acc in self.wardrobe['accessories']
+            if acc['item'] not in self.preferences['avoid_items']
+            and (weather in acc.get('weather', []) or 'all' in acc.get('weather', []))
+            and self.preferences['season'] in acc.get('season', ['all'])
+        ]
 
-        # Outerwear
-        outerwear = None
-        accessories = []
-
-        if weather in ['rain', 'drizzle', 'thunderstorm']:
-            outerwear = self._pick_item(self.wardrobe['outerwear']['rain'])
-            umbrella = self._pick_item(self.wardrobe['accessories']['rain'])
-            if umbrella:
-                accessories.append(umbrella)
-        elif weather == 'snow':
-            outerwear = self._pick_item(self.wardrobe['outerwear']['cold'])
-        elif temp_category in ['cold', 'freezing']:
-            outerwear = self._pick_item(self.wardrobe['outerwear']['cold'])
-            accessories += self._filter_items(self.wardrobe['accessories']['cold'])
-        elif temp_category == 'cool':
-            outerwear = self._pick_item(self.wardrobe['outerwear']['mild'])
-
-        if outerwear:
-            outfit_parts.append(f"Outerwear: {outerwear}")
-
-        # Bottoms
-        bottom = None
-        if temp_category in ['freezing', 'cold']:
-            bottom = self._pick_item(self.wardrobe['bottoms']['cold'])
-        elif temp_category == 'cool':
-            bottom = self._pick_item(self.wardrobe['bottoms']['mild'])
-        else:
-            bottom = self._pick_item(self.wardrobe['bottoms']['hot'])
-
-        if bottom:
-            outfit_parts.append(f"Bottom: {bottom}")
-
-        # Footwear
-        footwear = None
-        if weather in ['rain', 'drizzle']:
-            footwear = self._pick_item(self.wardrobe['footwear']['rain'])
-        elif weather == 'snow':
-            footwear = self._pick_item(self.wardrobe['footwear']['snow'])
-        else:
-            category = 'mild' if temp_category in ['cool', 'mild'] else 'hot'
-            footwear = self._pick_item(self.wardrobe['footwear'][category])
-
-        if footwear:
-            outfit_parts.append(f"Footwear: {footwear}")
-
-        # Sunny weather accessories
-        if weather == 'clear' and temp_category in ['mild', 'hot']:
-            sunny_acc = self._filter_items(self.wardrobe['accessories']['sunny'])
-            accessories += sunny_acc
-
+        outfit_details = [
+            f"Top: {top}",
+            f"Bottom: {bottom}",
+            f"Outerwear: {outer}",
+            f"Footwear: {shoes}"
+        ]
         if accessories:
-            outfit_parts.append(f"Accessories: {', '.join(accessories)}")
+            outfit_details.append("Accessories: " + ", ".join(accessories))
 
-        return "\n".join(outfit_parts)
+        style_warning = self.match_styles([top, bottom, outer, shoes])
 
+        return "\n".join(outfit_details + ([style_warning] if style_warning else []))
+    
 
-def clothing_recommendations(weather, temp):
+def main_recommendation(weather, temp):
     user_preferences = {
-        "style_preferences": ["casual"],
-        "avoid_items": ["poncho", "thermal pants", "parka"],
-        "must_have": ["sneakers", "hoodie"]
+    "style_preferences": ["casual"],
+    "avoid_items": ["flip flops", "black blazer"],
+    "must_have": ["windbreaker jacket", "rugby green t-shirt", "flat footed shoes", "black striped shorts"],
+    "occasion": "casual",
+    "season": "summer"
     }
 
     my_wardrobe = Wardrobe()
     recommender = Recommender(my_wardrobe, user_preferences)
-    outfit_str = recommender.recommend(weather, temp)
+    recommendation = recommender.recommend(weather, temp)
+    
+    return recommendation
 
-    return outfit_str
