@@ -2,7 +2,7 @@
 
 # Smart Weather Companion
 
-This Python program provides comprehensive weather information, personalized recommendations, and temperature predictions, delivered daily at 7:00 AM.
+This Python program provides comprehensive weather information, personalized recommendations, and temperature predictions.
 
 ## Overview
 
@@ -14,7 +14,6 @@ This project integrates several functionalities to provide a smart weather exper
 * **Basic Clothing Recommendation:** Suggests clothing items based on the current weather conditions and a user-defined wardrobe.
 * **Custom Weather Messages:** Generates personalized messages based on the prevailing weather.
 * **LSTM Temperature Prediction:** Utilizes a trained Long Short-Term Memory (LSTM) model to predict future temperatures based on historical weather data. This model boasts high accuracy.
-* **Automated Daily Execution:** Configured to run automatically every day at 7:00 AM using Task Scheduler.
 
 ## Features
 
@@ -27,20 +26,17 @@ This project integrates several functionalities to provide a smart weather exper
 * Recommends clothing items from a user-defined wardrobe suitable for the current weather.
 * Generates a custom message (e.g., "Enjoy the sunny day!", "Don't forget your umbrella!").
 * Predicts the temperature using a highly accurate LSTM model.
-* Set it up as an executable to run automatically every morning at 7:00 AM, delivering timely information.
 
 ## Technologies Used
 
 * Python
 * Visual Studio Code
-* Task Scheduler
 * Keras
 
 ## Setup and Installation
 
 1.  **Prerequisites:**
-    * Python 3.x installed on your system.
-    * Task Scheduler
+    * Python 3 installed on your system.
     * IDE that can run python
     * Install keras, datetime, pytz, and requests
     * Pushover API Key
@@ -62,7 +58,7 @@ This project integrates several functionalities to provide a smart weather exper
 
 ## Usage
 
-This program is designed for automated daily execution. Once configured in Task Scheduler, you do not need to manually run it. The program will:
+This program can be designed for automated daily execution. Once configured to run daily, The program will:
 
 1.  Fetch the latest weather data.
 2.  Process the data, including calculations and categorizations.
