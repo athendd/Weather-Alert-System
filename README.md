@@ -25,7 +25,7 @@ This project integrates several functionalities to provide a smart weather exper
 * Categorizes humidity levels (e.g., Low, Medium, High).
 * Recommends clothing items from a user-defined wardrobe suitable for the current weather.
 * Generates a custom message (e.g., "Enjoy the sunny day!", "Don't forget your umbrella!").
-* Predicts the temperature using a highly accurate LSTM model.
+* Predicts the temperature and other variables using a highly accurate LSTM model.
 
 ## Technologies Used
 
